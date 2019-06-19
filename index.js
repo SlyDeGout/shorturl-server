@@ -36,10 +36,7 @@ app.post("/add", async (req, res) => {
   try {
     // Check if url doesn't exist in database
     const link = await Link.findOne({ original: original });
-    if (link)
-      return res
-        .status(400)
-        .json({ message: "URL is already in database ..." });
+    if (link) return res.json({ message: "URL is already in database ..." });
 
     // Create new link in database
     const newLink = new Link({
@@ -62,10 +59,9 @@ app.post("/add", async (req, res) => {
 app.get("/link/", async (req, res) => {
   try {
     const link = await Link.findOne({ hash: req.query.hash });
-    console.log("link param " + req.query.hash);
     res.json(link);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
   }
 });
 
@@ -74,20 +70,17 @@ app.get("/", async (req, res) => {
   try {
     const links = await Link.find();
     res.json(links);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
   }
 });
 
 // Update
-app.post("/update", async (req, res) => {
+app.post("/addonevisit", async (req, res) => {
   try {
     if (req.body.id) {
       const link = await Link.findById(req.body.id);
       link.visits++;
-      //
-      // ???????? UPDATE PROCESS ???????
-      //
       await link.save();
 
       res.status(200).json({
@@ -96,8 +89,8 @@ app.post("/update", async (req, res) => {
     } else {
       res.status(400).json({ message: "Missing parameter : id" });
     }
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+  } catch (e) {
+    res.status(400).json({ e: error.message });
   }
 });
 
@@ -117,12 +110,12 @@ app.post("/delete", async (req, res) => {
     } else {
       res.status(400).json({ message: "Missing parameter : id" });
     }
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+  } catch (e) {
+    res.status(400).json({ e: error.message });
   }
 });
 
 const port = process.env.PORT || 3001;
 app.listen(port, () => {
-  console.log("Shorturl server started !!! ( on port " + port + ")");
+  console.log("Shorturl server started ! ( on port " + port + ")");
 });
