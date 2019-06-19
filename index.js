@@ -8,6 +8,16 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
+const validator = require("validator");
+
+//
+// Possible improvement note for a further version :
+//
+// - The validator used here doesn't check if extensions exist
+//
+// Here is a sample file of domain extensions :
+//import domain_extension_list from "../domain_extension_list";
+
 mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost/shorturl", {
   useNewUrlParser: true
 });
@@ -27,16 +37,28 @@ const Link = mongoose.model("Link", {
   }
 });
 
-// Create url in db
+// Create : url in db
 app.post("/add", async (req, res) => {
-  // ???? VERIFIER
-  // visits is optional ????????
-  const { original, hash, visits } = req.body;
+  // visits is optional
+  const { hash, visits } = req.body;
+  let original = req.body.original;
+
+  // we add "http://" at the beginning of urls which doesn't have it and are are not ftps in order to have the same look for all urls stored
+  if (original.indexOf("http") !== 0 && original.indexOf("ftp") !== 0) {
+    original = "http://" + original;
+  }
+
+  if (!validator.isURL(original)) {
+    return res.json({
+      error: "Unable to shorten that link. It is not a valid url."
+    });
+  }
 
   try {
     // Check if url doesn't exist in database
     const link = await Link.findOne({ original: original });
-    if (link) return res.json({ message: "URL is already in database ..." });
+    if (link)
+      return res.json({ error: "This url is already in the database ..." });
 
     // Create new link in database
     const newLink = new Link({
@@ -46,9 +68,7 @@ app.post("/add", async (req, res) => {
     });
     await newLink.save();
 
-    return res.status(200).json({
-      id: newLink._id
-    });
+    return res.status(200).json(newLink);
   } catch (e) {
     console.log({ error: e.message });
     res.status(400).json({ error: e.message });
@@ -59,7 +79,13 @@ app.post("/add", async (req, res) => {
 app.get("/link/", async (req, res) => {
   try {
     const link = await Link.findOne({ hash: req.query.hash });
-    res.json(link);
+    if (link) {
+      res.json(link);
+    } else {
+      res.status(404).json({
+        error: "Link not found, hash : " + req.query.hash
+      });
+    }
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
@@ -76,21 +102,24 @@ app.get("/", async (req, res) => {
 });
 
 // Update
-app.post("/addonevisit", async (req, res) => {
+app.post("/visit", async (req, res) => {
   try {
     if (req.body.id) {
       const link = await Link.findById(req.body.id);
-      link.visits++;
-      await link.save();
-
-      res.status(200).json({
-        link
-      });
+      if (link) {
+        link.visits++;
+        await link.save();
+        res.status(200).json({ link });
+      } else {
+        res.status(404).json({
+          error: "Link not found, id : " + req.body.id
+        });
+      }
     } else {
-      res.status(400).json({ message: "Missing parameter : id" });
+      res.status(400).json({ error: "Missing parameter : id" });
     }
   } catch (e) {
-    res.status(400).json({ e: error.message });
+    res.status(400).json({ error: e.message });
   }
 });
 
@@ -99,18 +128,19 @@ app.post("/delete", async (req, res) => {
   try {
     if (req.body.id) {
       const link = await Link.findById(req.body.id);
-      // Autre manière de trouver un document à partir d'un `id` :
-      await link.remove();
-
-      const links = await Link.find();
-      res.status(200).json({
-        links: links
-      });
+      if (link) {
+        await link.remove();
+        res.status(200).json({ message: "Link deleted, id : " + req.body.id });
+      } else {
+        res.status(404).json({
+          error: "Link not found, id : " + req.body.id
+        });
+      }
     } else {
-      res.status(400).json({ message: "Missing parameter : id" });
+      res.status(400).json({ error: "Missing parameter : id" });
     }
   } catch (e) {
-    res.status(400).json({ e: error.message });
+    res.status(400).json({ error: e.message });
   }
 });
 
