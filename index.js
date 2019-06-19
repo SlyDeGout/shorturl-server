@@ -98,9 +98,8 @@ app.post("/addonevisit", async (req, res) => {
 app.post("/delete", async (req, res) => {
   try {
     if (req.body.id) {
-      const link = await Link.findOne({ _id: req.body.id });
+      const link = await Link.findById(req.body.id);
       // Autre manière de trouver un document à partir d'un `id` :
-      // const student = await Student.findById(req.body.id);
       await link.remove();
 
       const links = await Link.find();
